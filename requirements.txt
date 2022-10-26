@@ -1,0 +1,4 @@
+certifi @ file:///croot/certifi_1665076670883/work/certifi
+numpy==1.23.4
+six==1.16.0
+whisper==1.1.10
