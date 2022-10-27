@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import whisper
 import spacy
 import argparse
@@ -46,14 +45,28 @@ def get_word_timestamps(result):
     return word_timestamps
 
 
+def get_secs(time):
+  # if time has a dot, return the seconds part
+  if '.' in str(time):
+    return str(time).split('.')[0]
+  else: 
+    return str(time)
+
+def get_msecs(time):
+  # if time has a dot, return the milliseconds part
+  if '.' in str(time):
+    return str(time).split('.')[1]
+  else:
+    return '00'
+
 # Get an audio/video file and generate a transcription using whisper
 # then align the audio with the transcription using gentle.
 # Process transcription with spacy to get NLP features
 # and finally generate a vrt file with the name of the audio/video file + .vrt
-def generate_vrt(file):
+def generate_vrt(file, whisper_model):
 
   print('Loading whisper model...')
-  model = whisper.load_model('large')
+  model = whisper.load_model(whisper_model)
 
   print('Transcribing audio...')
   results = model.transcribe(file, max_initial_timestamp=None)
@@ -67,13 +80,17 @@ def generate_vrt(file):
   sentencizer = nlp.add_pipe("sentencizer")
 
   vrt_file = open(file + '.vrt', 'w')
-  vrt_file.write('Prueba\n')
+  # file without extension and path
+  filename = file.split('/')[-1].split('.')[0]
+  vrt_file.write('<text id="' + filename  +  '" '  + 'file="' + file + '" '  + ' language="' + results['language'] + '">\n')
 
   print('Writing to vrt file...')
   last_start = 0
   last_end = 0
+  sentence_id = 0
   for sent in doc.sents:
-      vrt_file.write("<s>\n")
+      sentence_id += 1
+      vrt_file.write('<s id="' + str(sentence_id) + '" ' + 'file="' + filename + '" ' + ">\n")
       for token in sent:
         # find the word timestamp for the token
         found = False
@@ -83,21 +100,24 @@ def generate_vrt(file):
             found = True
             last_start = word['start']
             last_end = word['end']
-            vrt_file.write(token.text + " | " + token.lemma_ + " | " +  
-                          token.pos_ + " | " +  token.tag_ + " | " +  token.dep_ + " | " +  token.shape_ + " | " +  
-                          str(token.is_alpha) + " | " +  str(token.is_stop) + " | " +  token.head.text + " | " +  
-                          token.head.pos_ + " | " +  str([child for child in token.children]) + " | " + 
-                          word['start'] + " | " +  word['end'] + "\n" )  
+            vrt_file.write(token.text + " \t " + token.lower_  +  " \t " + token.prefix_  +  " \t " + token.suffix_ + " \t " + 
+                          str(token.is_digit) + " \t " + str(token.like_num) + " \t " + token.dep_ + " \t " + token.shape_ + " \t " + 
+                          token.lemma_ + " \t " +  token.pos_ + " \t " +  token.tag_ + " \t "  +  str(token.sentiment) + " \t " +
+                          str(token.is_alpha) + " \t " +  str(token.is_stop) + " \t " +  token.head.text + " \t " +  
+                          token.head.pos_ + " \t " +  str([child for child in token.children]) + " \t " + 
+                          get_secs(word['start']) + " \t " + get_msecs(word['start']) + " \t " + get_secs(word['end']) + " \t " + get_msecs(word['end']) + "\n")
             # delete all words until the used one
             word_timestamps = word_timestamps[word_timestamps.index(word)+1:]
             break
         if not found:
-          vrt_file.write(token.text + " | " + token.lemma_ + " | " +  
-                          token.pos_ + " | " +  token.tag_ + " | " +  token.dep_ + " | " +  token.shape_ + " | " +  
-                          str(token.is_alpha) + " | " +  str(token.is_stop) + " | " +  token.head.text + " | " +  
-                          token.head.pos_ + " | " +  str([child for child in token.children]) + " | " + 
-                          str(last_start) + " | " + str(last_end) + "\n") 
+            vrt_file.write(token.text + " \t " + token.lower_  +  " \t " + token.prefix_  +  " \t " + token.suffix_ + " \t " + 
+                          str(token.is_digit) + " \t " + str(token.like_num) + " \t " + token.dep_ + " \t " + token.shape_ + " \t " + 
+                          token.lemma_ + " \t " +  token.pos_ + " \t " +  token.tag_ + " \t "  +  str(token.sentiment) + " \t " +
+                          str(token.is_alpha) + " \t " +  str(token.is_stop) + " \t " +  token.head.text + " \t " +  
+                          token.head.pos_ + " \t " +  str([child for child in token.children]) + " \t " + 
+                          get_secs(last_start) + " \t " + get_msecs(last_start) + " \t " + get_secs(last_end) + " \t " + get_msecs(last_end) + "\n")
       vrt_file.write("</s>\n")
+  vrt_file.write("</text>\n")
   vrt_file.close()
 
 
@@ -105,6 +125,7 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser()
   parser.add_argument('--file', type=str, help='audio or video file')
+  parser.add_argument('--whisper_model', type=str, help='whisper model', default='large')
   args = parser.parse_args()
 
-  generate_vrt(args.file)
+  generate_vrt(args.file, args.whisper_model)
