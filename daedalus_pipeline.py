@@ -12,6 +12,8 @@ import gentle
 from gentle import resampled, standard_kaldi, Resources
 from gentle.forced_aligner import ForcedAligner
 
+from thefuzz import fuzz
+
 
 # Get and audio/video file and a transcription. Align the audio/video with the transcription
 # and return gentle's result
@@ -106,9 +108,6 @@ def generate_vrt(file, whisper_model):
   
   f.close()
 
-
-
-
   vrt_file = open(file + '.vrt', 'w')
   # file without extension and path
   filename = file.split('/')[-1].split('.')[0]
@@ -118,6 +117,7 @@ def generate_vrt(file, whisper_model):
   print('Writing to vrt file...')
   last_start = 0
   last_end = 0
+  last_token = ''
   sentence_id = 0
   for sent in doc.sents:
       sentence_id += 1
@@ -134,11 +134,12 @@ def generate_vrt(file, whisper_model):
         # find the word timestamp for the token
         found = False
         for word in words_timestamps:
-          # if word starts with token print token and timestamp
-          if word['word'].startswith(token_text):
+          # TODO: Use thefuzz library to find if word and token are the "same"
+          if fuzz.ratio(word['word'], token_text) > 60:
             found = True
             last_start = word['start']
             last_end = word['end']
+            last_token = token_text
             # vrt_file.write(token.text + "\t " + get_secs(word['start']) + " \t " + get_msecs(word['start']) + " \t " + get_secs(word['end']) + " \t " + get_msecs(word['end']) + "\n")
             vrt_file.write(token_text + " \t " + token.lower_  +  " \t " + token.prefix_  +  " \t " + token.suffix_ + " \t " + 
                           str(token.is_digit) + " \t " + str(token.like_num) + " \t " + token.dep_ + " \t " + token.shape_ + " \t " + 
@@ -150,6 +151,8 @@ def generate_vrt(file, whisper_model):
             words_timestamps = words_timestamps[words_timestamps.index(word)+1:]
             break
           if not found:
+            if fuzz.ratio(last_token, word['word']) > 20:
+              words_timestamps = words_timestamps[words_timestamps.index(word)+2:]
             # vrt_file.write(token.text + " \t " + get_secs(last_start) + " \t " + get_msecs(last_start) + " \t " + get_secs(last_end) + " \t " + get_msecs(last_end) + "\n")
             vrt_file.write(token_text + " \t " + token.lower_  +  " \t " + token.prefix_  +  " \t " + token.suffix_ + " \t " + 
                             str(token.is_digit) + " \t " + str(token.like_num) + " \t " + token.dep_ + " \t " + token.shape_ + " \t " + 
@@ -163,50 +166,83 @@ def generate_vrt(file, whisper_model):
   vrt_file.close()
 
 
-# def test():
+def test():
 
-#   # open file 2016-01-01_0000_US_MSNBC_Hardball_with_Chris_Matthews_15_minutes.mp4.timestamps
-#   # and create a dictinary with keys word, start and end for each line
-#   word_timestamps = []
-#   with open('2016-01-01_0000_US_MSNBC_Hardball_with_Chris_Matthews_15_minutes.mp4.timestamps', 'r') as f:
-#     for line in f:
-#       word_timestamps.append({'word': line.split(' ')[0], 'start': line.split(' ')[1], 'end': line.split(' ')[2].strip()})
-#   f.close()
+  # open file 2016-01-01_0000_US_MSNBC_Hardball_with_Chris_Matthews_15_minutes.mp4.timestamps
+  # and create a dictinary with keys word, start and end for each line
+  words_timestamps = []
+  with open('videos/2016-01-01_0000_US_MSNBC_Hardball_with_Chris_Matthews.mp4.timestamps', 'r') as f:
+    for line in f:
+      words_timestamps.append({'word': line.split(' ')[0], 'start': line.split(' ')[1], 'end': line.split(' ')[2].strip()})
+  f.close()
 
-#   # open file 2016-01-01_0000_US_MSNBC_Hardball_with_Chris_Matthews_15_minutes.mp4.txt and save as string
-#   with open('2016-01-01_0000_US_MSNBC_Hardball_with_Chris_Matthews_15_minutes.mp4.txt', 'r') as f:
-#     results = f.read()
+  # open file 2016-01-01_0000_US_MSNBC_Hardball_with_Chris_Matthews_15_minutes.mp4.txt and save as string
+  with open('videos/2016-01-01_0000_US_MSNBC_Hardball_with_Chris_Matthews.mp4.txt', 'r') as f:
+    results = f.read()
 
-#   f.close()
+  f.close()
 
 
-#   print('Loading spacy model...')
-#   nlp = spacy.load('en_core_web_lg')
-#   doc = nlp(results)
-#   sentencizer = nlp.add_pipe("sentencizer")
+  print('Loading spacy model...')
+  nlp = spacy.load('en_core_web_lg')
+  doc = nlp(results)
+  sentencizer = nlp.add_pipe("sentencizer")
 
-#   last_start = 0
-#   last_end = 0
-#   sentence_id = 0
-#   for sent in doc.sents:
-#       sentence_id += 1
-#       for token in sent:
-#         # find the word timestamp for the token
-#         found = False
-#         for word in word_timestamps:
-#           # if word starts with token print token and timestamp
-#           if word['word'].startswith(token.text):
-#             found = True
-#             last_start = word['start']
-#             last_end = word['end']            
-#             print(token.text + "\t " + get_secs(word['start']) + " \t " + get_msecs(word['start']) + " \t " + get_secs(word['end']) + " \t " + get_msecs(word['end']) + "\n")
-#             # delete all words until the used one
-#             word_timestamps = word_timestamps[word_timestamps.index(word)+1:]
-#             break
-#           if not found:
-#             print(token.text + " \t " + get_secs(last_start) + " \t " + get_msecs(last_start) + " \t " + get_secs(last_end) + " \t " + get_msecs(last_end) + "\n")
-#             break
+  print('Writing to vrt file...')
+  last_start = 0
+  last_end = 0
+  last_token = ''
+  sentence_id = 0
+  for sent in doc.sents:
+      sentence_id += 1
+      #vrt_file.write('<s id="' + str(sentence_id) + '" ' + 'file="' + filename + '" ' + ">\n")
+      for token in sent:
+        if token.text == 'ColonialPen':
+          print("DENTRO")
+        if token.pos_ != 'PUNCT':
+          # delete puntuation from token
+          tmp = token.text.replace(',', '')
+          tmp = tmp.replace('.', '')
+          token_text = tmp
+        else:
+          token_text = token.text          
 
+        # find the word timestamp for the token
+        found = False
+        for word in words_timestamps:
+          # if word starts with token print token and timestamp
+          # TODO: Use thefuzz library to find if word and token are the "same"
+          if fuzz.ratio(word['word'], token_text) > 60:
+          #if word['word'].startswith(token_text) or token_text.startswith(word['word']):
+            found = True
+            last_start = word['start']
+            last_end = word['end']
+            last_token = token_text
+            # vrt_file.write(token.text + "\t " + get_secs(word['start']) + " \t " + get_msecs(word['start']) + " \t " + get_secs(word['end']) + " \t " + get_msecs(word['end']) + "\n")
+            # vrt_file.write(token_text + " \t " + token.lower_  +  " \t " + token.prefix_  +  " \t " + token.suffix_ + " \t " + 
+            #               str(token.is_digit) + " \t " + str(token.like_num) + " \t " + token.dep_ + " \t " + token.shape_ + " \t " + 
+            #               token.lemma_ + " \t " +  token.pos_ + " \t " +  token.tag_ + " \t "  +  str(token.sentiment) + " \t " +
+            #               str(token.is_alpha) + " \t " +  str(token.is_stop) + " \t " +  token.head.text + " \t " +  
+            #               token.head.pos_ + " \t " +  str([child for child in token.children]) + " \t " + 
+            #               get_secs(word['start']) + " \t " + get_msecs(word['start']) + " \t " + get_secs(word['end']) + " \t " + get_msecs(word['end']) + "\n")
+            print(token_text + " \t " + get_secs(word['start']) + " \t " + get_msecs(word['start']) + " \t " + get_secs(word['end']) + " \t " + get_msecs(word['end']) + "\n")
+              # delete all words until the used one
+            words_timestamps = words_timestamps[words_timestamps.index(word)+1:]
+            break
+          if not found:
+            if fuzz.ratio(last_token, word['word']) > 20:
+              # move to next token
+              print("JURR")
+              words_timestamps = words_timestamps[words_timestamps.index(word)+2:]
+            # vrt_file.write(token.text + " \t " + get_secs(last_start) + " \t " + get_msecs(last_start) + " \t " + get_secs(last_end) + " \t " + get_msecs(last_end) + "\n")
+            # vrt_file.write(token_text + " \t " + token.lower_  +  " \t " + token.prefix_  +  " \t " + token.suffix_ + " \t " + 
+            #                 str(token.is_digit) + " \t " + str(token.like_num) + " \t " + token.dep_ + " \t " + token.shape_ + " \t " + 
+            #                 token.lemma_ + " \t " +  token.pos_ + " \t " +  token.tag_ + " \t "  +  str(token.sentiment) + " \t " +
+            #                 str(token.is_alpha) + " \t " +  str(token.is_stop) + " \t " +  token.head.text + " \t " +  
+            #                 token.head.pos_ + " \t " +  str([child for child in token.children]) + " \t " + 
+            #                 get_secs(last_start) + " \t " + get_msecs(last_start) + " \t " + get_secs(last_end) + " \t " + get_msecs(last_end) + "\n")
+            print(token_text + " \t " + get_secs(last_start) + " \t " + get_msecs(last_start) + " \t " + get_secs(last_end) + " \t " + get_msecs(last_end) + "\n")
+            break
 
 if __name__ == '__main__':
 
