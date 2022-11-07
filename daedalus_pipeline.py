@@ -83,11 +83,12 @@ def generate_vrt(file, whisper_model):
   spacy_tokens = ""
 
   for token in doc:
-    # if token is a number with , or . delete , or . 
-    if token.pos_ == 'NUM':
+    # if token isn't punctuation delete , - or . 
+    if token.pos_ != 'PUNCT':
       # delete puntuation from token
       tmp = token.text.replace(',', '')
       tmp = tmp.replace('.', '')
+      tmp = tmp.replace('-', '')
       spacy_tokens += tmp + " "
     else:
       spacy_tokens += token.text + " "
@@ -112,9 +113,29 @@ def generate_vrt(file, whisper_model):
   vrt_file = open(file + '.vrt', 'w')
   # file without extension and path
   filename = file.split('/')[-1].split('.')[0]
+  # sub - for _ in filename
+  filename = filename.replace('-', '_')  
   filename_with_ext = file.split('/')[-1]
-  vrt_file.write('<text id="' + filename  +  '" '  + 'file="' + filename_with_ext + '" '  + ' language="' + results['language'] + '">\n')
+  # filename with extension: 2016-01-01_0000_US_MSNBC_Hardball_with_Chris_Matthews.mp4
+  # date and time: 2016-01-01_0000
+  date_time = filename_with_ext.split('_')[0] + '_' + filename_with_ext.split('_')[1]
+  # channel: MSNBC
+  channel = filename_with_ext.split('_')[3]
+  # title: Hardball_with_Chris_Matthews
+  title = filename_with_ext.split('_')[4].split('.')[0]
+  # year: 2016
+  year = date_time.split('-')[0]
+  # month: 01
+  month = date_time.split('-')[1]
+  # day: 01
+  day = date_time.split('-')[2].split('_')[0]
+  # time: 0000
+  time = date_time.split('-')[2].split('_')[1]
 
+  vrt_file.write('<text id="t__' + filename  +  '" '  + 'file="' + filename_with_ext + '" '  + ' language="' + results['language'] + '" ' +
+      'collection="Daedalus Test" ' + 'date="' + date_time + '" ' + 'channel="' + channel + '" ' + 'title="' + title + '" ' + 'year="' + year + '" ' + 'month="' + month + '" ' + 'day="' + day + '" ' + 'time="' + time + '" ' + '>\n')  
+  vrt_file.write('<story>\n')
+  vrt_file.write('<turn>\n')
   print('Writing to vrt file...')
   last_start = 0
   last_end = 0
@@ -122,7 +143,8 @@ def generate_vrt(file, whisper_model):
   sentence_id = 0
   for sent in doc.sents:
       sentence_id += 1
-      vrt_file.write('<s id="' + str(sentence_id) + '" ' + 'file="' + filename + '" ' + ">\n")
+      vrt_file.write('<s id="' + str(sentence_id) + '" ' + 'file="' + filename + '" ' +     
+      'reltime=' + get_secs(last_start) + '" '  ">\n")
       for token in sent:
         if token.pos_ != 'PUNCT':
           # regex remove everythink but letters and numbers and ' from token
@@ -133,7 +155,7 @@ def generate_vrt(file, whisper_model):
         # find the word timestamp for the token
         found = False
         for word in words_timestamps:
-          # TODO: Use thefuzz library to find if word and token are the "same"
+          # Use thefuzz library to find if word and token are the "same"
           if fuzz.ratio(word['word'], token_text) > 60:
             found = True
             last_start = word['start']
@@ -161,6 +183,8 @@ def generate_vrt(file, whisper_model):
                             get_secs(last_start) + " \t " + get_msecs(last_start) + " \t " + get_secs(last_end) + " \t " + get_msecs(last_end) + "\n")
             break
       vrt_file.write("</s>\n")
+  vrt_file.write('</turn>\n')
+  vrt_file.write('</story>\n')
   vrt_file.write("</text>\n")
   vrt_file.close()
 
