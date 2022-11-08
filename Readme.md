@@ -2,6 +2,9 @@
 
 Pipeline is a simple and easy tools to create vertical (.vrt) and corpus files from videos.
 
+
+![pipeline](imgs/pipeline.jpg)
+
 It rests on this tools to create the pipeline:
  - [OpenAI Whisper](https://github.com/openai/whisper): is a general-purpose speech recognition model. It is trained on a large dataset of diverse audio and is also a multi-task model that can perform multilingual speech recognition as well as speech translation and language identification.
  - [Spacy](https://spacy.io/): is a free, open-source library for Natural Language Processing in Python. It features NER, POS tagging, dependency parsing, word vectors and more.
