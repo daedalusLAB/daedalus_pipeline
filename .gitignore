@@ -2,3 +2,4 @@ videos/*
 __pycache__/*
 *.ipynb
 tools/*
+*.wav

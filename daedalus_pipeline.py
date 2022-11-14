@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import whisper
+
 import spacy
 import argparse
 import sys
@@ -13,6 +14,7 @@ from gentle import resampled, standard_kaldi, Resources
 from gentle.forced_aligner import ForcedAligner
 from thefuzz import fuzz
 import re 
+import unidecode
 
 # Get and audio/video file and a transcription. Align the audio/video with the transcription
 # and return gentle's result
@@ -21,7 +23,7 @@ def align_audio_text(audio_file, transcription):
   disfluencies = set(['uh', 'um'])
   resources = gentle.Resources()
   with gentle.resampled(audio_file) as wavfile:
-      print("starting alignment")
+      print("starting gentle alignment")
       aligner = gentle.ForcedAligner(resources, transcription, nthreads=4, disfluency=False, conservative=True, disfluencies=False)
       result = aligner.transcribe(wavfile)
   return result
@@ -103,13 +105,15 @@ def generate_vrt(file, whisper_model):
   model = whisper.load_model(whisper_model)
 
   print('Transcribing audio...')
-  results = model.transcribe(file, max_initial_timestamp=None)
+  results = model.transcribe(file)
+
 
   # Load spacy model
   nlp = load_spacy_model(results['language'])
   nlp.add_pipe("sentencizer")
   doc = nlp(results['text'])
 
+  
   # we use spacy tokens to pass it to gentle
   # gentle mess spacy tokenization with its own tokenization
   # so we remove puntuation from not punctuation tokens
@@ -124,9 +128,10 @@ def generate_vrt(file, whisper_model):
       spacy_tokens += tmp + " "
     else:
       spacy_tokens += token.text + " "
-
+  
   aligned_results = align_audio_text(file,spacy_tokens) 
   words_timestamps = get_word_timestamps(aligned_results)
+  
 
   # write transcription to a file to debug if needed
   with open(file + '.txt', 'w') as f:
@@ -156,7 +161,8 @@ def generate_vrt(file, whisper_model):
       for token in sent:
         if token.pos_ != 'PUNCT':
           # regex remove everythink but letters and numbers and ' from token
-          token_text = re.sub('[^A-Za-záéíóúÁÉÍÓÚüÜ0-9\']+', '', token.text)      
+          # token_text = re.sub('[^A-Za-záéíóúÁÉÍÓÚüÜñÑ0-9\']+', '', token.text)   
+          token_text = unidecode.unidecode(token.text)   
         else:
           token_text = token.text          
         # find the word timestamp for the token
