@@ -63,16 +63,16 @@ def get_msecs(time):
 def load_spacy_model(language):
   if language == 'es':
     print("Loading spacy model for Spanish")
-    return spacy.load('es_core_news_lg')
+    return spacy.load('es_dep_news_trf')
   if language == 'de':
     print("Loading spacy model for German")
-    return spacy.load('de_core_news_lg')
+    return spacy.load('de_dep_news_trf')
   if language == 'pl':
     print("Loading spacy model for Polish")
     return spacy.load('pl_core_news_lg')
   else:
     print("Loading spacy model for English")
-    return spacy.load('en_core_web_lg')
+    return spacy.load('en_dep_web_trf')
 
 # Parse data from file name expecting a filename as this: 2016-01-01_0000_US_MSNBC_Hardball_with_Chris_Matthews.mp4
 def parse_file(file):
