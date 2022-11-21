@@ -12,7 +12,7 @@ It rests on this tools to create the pipeline:
 
 ## Usage
 
-Take a videofile as input and generate the corresponding vrt file named `videofile.vrt` in the same directory.
+Take a videofile as input and generate the corresponding vtt file named `videofile.vtt` in the same directory.
 
 <code >
   ./daedalus_pipeline.py --file <input_file>
